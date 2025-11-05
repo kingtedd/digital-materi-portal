@@ -1,14 +1,22 @@
 flowchart TD
-  Start[Landing Page]
-  SignUpPage[Sign Up Page]
-  SignInPage[Sign In Page]
-  AuthAPI[Authentication API Endpoint]
-  DashboardPage[Dashboard Page]
-  Start -->|Select Sign Up| SignUpPage
-  Start -->|Select Sign In| SignInPage
-  SignUpPage -->|Submit Credentials| AuthAPI
-  SignInPage -->|Submit Credentials| AuthAPI
-  AuthAPI -->|Success| DashboardPage
-  AuthAPI -->|Error| SignUpPage
-  AuthAPI -->|Error| SignInPage
-  DashboardPage -->|Click Logout| Start
+    Start[Start] --> SignIn[User navigates to Sign In]
+    SignIn --> OAuth[Google OAuth Flow]
+    OAuth --> BackendAuth[BFF calls Laravel Auth]
+    BackendAuth --> RoleCheck{User Role}
+    RoleCheck -->|Teacher| TeacherDashboard[Teacher Dashboard]
+    RoleCheck -->|Admin| AdminDashboard[Admin Dashboard]
+    TeacherDashboard --> CreateMaterial[Create Material Form]
+    CreateMaterial --> SubmitMaterial[Submit Form to BFF]
+    SubmitMaterial --> LaravelMaterial[Laravel API Create Material]
+    LaravelMaterial --> SheetsWorkflow[Update Google Sheets and Trigger n8n]
+    SheetsWorkflow --> ReturnJob[Return job id]
+    ReturnJob --> JobStatusPage[Job Status Page]
+    JobStatusPage --> PollJobs[Poll Job Status]
+    PollJobs -->|Completed| DisplayResults[Display Results]
+    TeacherDashboard --> ViewCatalog[View Material Catalog]
+    TeacherDashboard --> ViewAnalytics[View Analytics]
+    TeacherDashboard --> JobMonitor[Job Monitor]
+    AdminDashboard --> ManageUsers[Manage Users]
+    AdminDashboard --> SystemAnalytics[View System Analytics]
+    AdminDashboard --> ScheduleWorkflow[Manage Scheduling Workflow]
+    DisplayResults --> End[End]

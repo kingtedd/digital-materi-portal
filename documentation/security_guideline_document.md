@@ -1,116 +1,126 @@
-# Security Guidelines for codeguide-starter
+# Security Guidelines for 
 
-This document defines mandatory security principles and implementation best practices tailored to the **codeguide-starter** repository. It aligns with Security-by-Design, Least Privilege, Defense-in-Depth, and other core security tenets. All sections reference specific areas of the codebase (e.g., `/app/api/auth/route.ts`, CSS files, environment configuration) to ensure practical guidance.
-
----
-
-## 1. Security by Design
-
-• Embed security from day one: review threat models whenever adding new features (e.g., new API routes, data fetching).
-• Apply “secure defaults” in Next.js configuration (`next.config.js`), enabling strict mode and disabling debug flags in production builds.
-• Maintain a security checklist in your PR template to confirm that each change has been reviewed against this guideline.
+**Project**: digital-materi-portal  
+**Stack**: Next.js (App Router), React, TypeScript, Tailwind CSS, shadcn/ui, Next-Auth (Google OAuth), BFF API routes, Docker  
+**Backend**: Laravel API, n8n workflows, Google Sheets (managed exclusively by backend)
 
 ---
 
-## 2. Authentication & Access Control
+## 1. Authentication & Access Control
 
-### 2.1 Password Storage
-- Use **bcrypt** (or Argon2) with a per-user salt to hash passwords in `/app/api/auth/route.ts`.
-- Enforce a strong password policy on both client and server: minimum 12 characters, mixed case, numbers, and symbols.
+- **Google OAuth Integration**  
+  • Use a proven library (e.g., next-auth) to handle the OAuth 2.0 flow.  
+  • Validate Google ID tokens on the server (BFF) using Google’s public keys.  
+  • Exchange the Google token for a session JWT issued by your Laravel backend.
 
-### 2.2 Session Management
-- Issue sessions via Secure, HttpOnly, SameSite=strict cookies. Do **not** expose tokens to JavaScript.
-- Implement absolute and idle timeouts. For example, invalidate sessions after 30 minutes of inactivity.
-- Protect against session fixation by regenerating session IDs after authentication.
+- **Secure Session Management**  
+  • Store session tokens in cookies with `HttpOnly`, `Secure`, and `SameSite=Strict` attributes.  
+  • Enforce short-lived access tokens and refresh tokens with rotation.  
+  • Implement idle and absolute session timeouts, and provide a logout endpoint that revokes tokens.
 
-### 2.3 Brute-Force & Rate Limiting
-- Apply rate limiting at the API layer (e.g., using `express-rate-limit` or Next.js middleware) on `/api/auth` to throttle repeated login attempts.
-- Introduce exponential backoff or temporary lockout after N failed attempts.
-
-### 2.4 Role-Based Access Control (Future)
-- Define user roles in your database model (e.g., `role = 'user' | 'admin'`).
-- Enforce server-side authorization checks in every protected route (e.g., in `dashboard/layout.tsx` loader functions).
+- **Role-Based Access Control (RBAC)**  
+  • Fetch user roles (`teacher`, `admin`) from the Laravel API on login.  
+  • Enforce authorization checks in every Next.js API route and on critical pages.  
+  • Hide or disable UI elements in the frontend based on role claims—never rely solely on client code.
 
 ---
 
-## 3. Input Handling & Processing
+## 2. Input Handling & Processing
 
-### 3.1 Validate & Sanitize All Inputs
-- On **client** (`sign-up/page.tsx`, `sign-in/page.tsx`): perform basic format checks (email regex, password length).
-- On **server** (`/app/api/auth/route.ts`): re-validate inputs with a schema validator (e.g., `zod`, `Joi`).
-- Reject or sanitize any unexpected fields to prevent injection attacks.
+- **Front-end & Server-side Validation**  
+  • Define strict schemas (e.g., with Zod or Joi) for all form inputs and API route payloads.  
+  • Validate again in BFF routes before proxying requests to Laravel.  
+  • Reject or sanitize any unexpected fields.
 
-### 3.2 Prevent Injection
-- If you introduce a database later, always use parameterized queries or an ORM (e.g., Prisma) rather than string concatenation.
-- Avoid dynamic `eval()` or template rendering with unsanitized user input.
+- **Prevent Injection & XSS**  
+  • Do not interpolate user data directly into HTML—use React’s escaping by default.  
+  • For any rich-text or HTML inputs, employ a sanitization library such as DOMPurify.  
+  • Use parameterized queries in Laravel (Eloquent or Query Builder) to prevent SQL injection.
 
-### 3.3 Safe Redirects
-- When redirecting after login or logout, validate the target against an allow-list to prevent open redirects.
+- **Secure File Uploads (if added)**  
+  • Restrict by MIME type and file size.  
+  • Store uploads outside the public directory or on a secure object store (e.g., AWS S3 with pre-signed URLs).  
+  • Scan for malware and strip any embedded scripts.
+
+---
+
+## 3. BFF & API Security
+
+- **HTTPS / TLS Enforcement**  
+  • All BFF routes and backend API endpoints must use TLS 1.2+.  
+  • HSTS header: `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload`.
+
+- **CORS & Rate Limiting**  
+  • Configure CORS to allow only trusted origins (e.g., your portal domain).  
+  • Implement per-IP and per-user rate limiting on API routes (e.g., 100 req/min) to mitigate brute-force and DoS attempts.
+
+- **Error Handling & Secrets**  
+  • Do not leak stack traces or internal errors to clients; return generic error messages.  
+  • Load secrets (OAuth credentials, API keys) from a secrets manager or environment variables—never commit them.
 
 ---
 
 ## 4. Data Protection & Privacy
 
-### 4.1 Encryption & Secrets
-- Enforce HTTPS/TLS 1.2+ for all front-end ↔ back-end communications.
-- Never commit secrets—use environment variables and a secrets manager (e.g., AWS Secrets Manager, Vault).
+- **Encryption**  
+  • Enforce HTTPS for all client↔server communication.  
+  • Encrypt any sensitive data at rest in backend services (Laravel database).  
+  • Use strong hashing (bcrypt or Argon2) for any additional passwords or tokens stored.
 
-### 4.2 Sensitive Data Handling
-- Do ​not​ log raw passwords, tokens, or PII in server logs. Mask or redact any user identifiers.
-- If storing PII in `data.json` or a future database, classify it and apply data retention policies.
-
----
-
-## 5. API & Service Security
-
-### 5.1 HTTPS Enforcement
-- In production, redirect all HTTP traffic to HTTPS (e.g., via Vercel’s redirect rules or custom middleware).
-
-### 5.2 CORS
-- Configure `next.config.js` or API middleware to allow **only** your front-end origin (e.g., `https://your-domain.com`).
-
-### 5.3 API Versioning & Minimal Exposure
-- Version your API routes (e.g., `/api/v1/auth`) to handle future changes without breaking clients.
-- Return only necessary fields in JSON responses; avoid leaking internal server paths or stack traces.
+- **PII Handling**  
+  • Minimize PII collected in the frontend; only transmit what is necessary.  
+  • Mask or redact PII in logs.  
+  • Comply with regulations (e.g., GDPR) for data retention and deletion.
 
 ---
 
-## 6. Web Application Security Hygiene
+## 5. Web Application Security Hygiene
 
-### 6.1 CSRF Protection
-- Use anti-CSRF tokens for any state-changing API calls. Integrate Next.js CSRF middleware or implement synchronizer tokens stored in cookies.
+- **Security Headers**  
+  • Content-Security-Policy: restrict scripts, styles, and frame ancestors to trusted sources.  
+  • X-Frame-Options: `DENY` to prevent clickjacking.  
+  • X-Content-Type-Options: `nosniff` to block MIME sniffing.
 
-### 6.2 Security Headers
-- In `next.config.js` (or a custom server), add these headers:
-  - `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload`
-  - `X-Content-Type-Options: nosniff`
-  - `X-Frame-Options: DENY`
-  - `Referrer-Policy: no-referrer-when-downgrade`
-  - `Content-Security-Policy`: restrict script/style/src to self and trusted CDNs.
+- **CSRF Protection**  
+  • Next.js API routes: require and validate anti-CSRF tokens for state-changing requests.  
+  • Use double-submit cookies or Synchronizer Token Pattern.
 
-### 6.3 Secure Cookies
-- Set `Secure`, `HttpOnly`, `SameSite=Strict` on all cookies. Avoid storing sensitive data in `localStorage`.
-
-### 6.4 Prevent XSS
-- Escape or encode all user-supplied data in React templates. Avoid `dangerouslySetInnerHTML` unless content is sanitized.
+- **Cookie Security**  
+  • All session or refresh tokens set with `HttpOnly`, `Secure`, `SameSite=Strict`.  
+  • Avoid storing tokens in localStorage or sessionStorage.
 
 ---
 
-## 7. Infrastructure & Configuration Management
+## 6. Infrastructure & Configuration Management
 
-- Harden your hosting environment (e.g., Vercel/Netlify) by disabling unnecessary endpoints (GraphQL/GraphiQL playgrounds in production).
-- Rotate secrets and API keys regularly via your secrets manager.
-- Maintain minimal privileges: e.g., database accounts should only have read/write on required tables.
-- Keep Node.js, Next.js, and all system packages up to date.
+- **Docker Hardening**  
+  • Use minimal, up-to-date base images (e.g., `node:slim`).  
+  • Run the application as a non-root user inside the container.  
+  • Scan container images regularly with a CVE scanner.
+
+- **Server & Network**  
+  • Expose only needed ports (e.g., 443 for HTTPS).  
+  • Disable or remove default credentials on any management interfaces.  
+  • Keep host OS, Docker daemon, and dependencies patched.
+
+- **Configuration**  
+  • Separate configuration from code: use environment variables or a config service.  
+  • Version and audit all environment and secret changes.
 
 ---
 
-## 8. Dependency Management
+## 7. Dependency Management & CI/CD Security
 
-- Commit and maintain `package-lock.json` to guarantee reproducible builds.
-- Integrate a vulnerability scanner (e.g., GitHub Dependabot, Snyk) to monitor and alert on CVEs in dependencies.
-- Trim unused packages; each added library increases the attack surface.
+- **Secure Dependencies**  
+  • Maintain a lockfile (`package-lock.json`) for deterministic installs.  
+  • Periodically run automated vulnerability scans (e.g., npm audit, Snyk, GitHub Dependabot).  
+  • Remove unused packages to reduce attack surface.
+
+- **CI/CD Pipeline**  
+  • Store secrets (API keys, SSH keys) securely in your CI system’s secret vault.  
+  • Enforce code reviews and automated linting, formatting, and security tests.  
+  • Run SAST/DAST tools as part of the build; block deployments on critical/high findings.
 
 ---
 
-Adherence to these guidelines will ensure that **codeguide-starter** remains secure, maintainable, and resilient as it evolves. Regularly review and update this document to reflect new threats and best practices.
+By adhering to these guidelines, the digital-materi-portal will be built with security as a first-class cornerstone, ensuring a resilient, trustworthy, and compliant user-facing application.
