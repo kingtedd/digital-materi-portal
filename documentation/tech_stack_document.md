@@ -1,90 +1,99 @@
-# Tech Stack Document
+# Tech Stack Document: digital-materi-portal
 
-This document explains the key technologies chosen for the **codeguide-starter** project. It’s written in everyday language so anyone—technical or not—can understand why each tool was picked and how it supports the application.
+This document explains, in everyday language, the choices of technologies for the Teacher and Admin Portals of the Portal Digitalisasi Materi project. It shows how each piece fits together to give a smooth, reliable experience for both users and developers.
 
 ## 1. Frontend Technologies
-The frontend is everything the user sees and interacts with. For this project, we’ve used:
+These are the tools we use to build everything the user sees and interacts with.
 
-- **Next.js (App Router)**
-  - A React framework that makes page routing, server-side rendering, and API routes very simple.
-  - Enhances user experience by pre-rendering pages on the server or at build time, leading to faster initial load.
-- **React 18**
-  - The underlying library for building user interfaces with reusable components.
-  - Provides a smooth, interactive experience thanks to its virtual DOM and modern hooks.
-- **TypeScript**
-  - A superset of JavaScript that adds types (labels for data).
-  - Helps catch errors early during development and makes the code easier to maintain.
-- **CSS (globals.css & theme.css)**
-  - **globals.css** applies base styles (fonts, colors, resets) across the entire app.
-  - **dashboard/theme.css** defines the look and feel specific to the dashboard area.
-  - This separation keeps styles organized and avoids accidental style conflicts.
-
-By combining these tools, we have a clear structure (Next.js folders for pages and layouts), safer code (TypeScript), and flexible styling with vanilla CSS.
+- **Next.js 15 (App Router)**
+  - Provides fast page loads by rendering pages on the server first (Server-Side Rendering), then turns into a single-page app in the browser.
+  - Organizes routes and data fetching in a clear folder structure.
+- **React 19 & TypeScript**
+  - React lets us build the interface in reusable pieces (components).  
+  - TypeScript adds simple checks to make sure we’re passing the right data around, reducing bugs.
+- **Tailwind CSS & shadcn/ui**
+  - Tailwind gives us building-block CSS classes (like “padding-4” or “text-center”) for rapid styling.  
+  - shadcn/ui provides a ready set of styled components (forms, buttons, tables) that match Tailwind’s style guide.
+- **Data Fetching & State Management**
+  - **Axios or Fetch API** for making HTTP calls to our backend.  
+  - **React Query** (or **SWR**) to handle loading states, caching, and background updates, especially useful for polling job statuses.
+- **Charting Library**
+  - **Recharts** or **Chart.js** to turn raw analytics data (from the Gemini API) into interactive graphs and charts.
+- **Code Quality & Developer Tools**
+  - **openapi-typescript** to generate TypeScript types from the Laravel API’s OpenAPI schema, ensuring type safety end-to-end.
+  - **ESLint** and **Prettier** to keep code style consistent and catch errors early.
 
 ## 2. Backend Technologies
-The backend handles data, user accounts, and the logic behind the scenes. Our choices here are:
+These services handle data, business logic, and workflows behind the scenes.
 
-- **Next.js API Routes**
-  - Allows us to write server-side code (`route.ts` files) alongside our frontend in the same project.
-  - Runs on Node.js, so we can handle requests like sign-up, sign-in, and data fetching in one place.
-- **Node.js Runtime**
-  - The JavaScript environment on the server that executes our API routes.
-- **bcrypt** (npm package)
-  - A library for hashing passwords securely before storing them.
-  - Ensures that even if someone got access to our data, raw passwords aren’t visible.
-- **(Optional) NextAuth.js or JWT**
-  - While this starter kit shows a custom authentication flow, it can easily integrate services like NextAuth.js for email-based login or JWT (JSON Web Tokens) for stateless sessions.
-
-These components work together to receive user credentials, verify or store them securely, manage sessions or tokens, and deliver protected data back to the frontend.
+- **Laravel API**
+  - A PHP framework that exposes RESTful endpoints for creating materials, checking job status, and fetching analytics.
+  - Manages user sessions, roles (teacher vs. admin), and secures data access.
+- **n8n Workflows**
+  - A workflow automation tool triggered by Laravel to generate and schedule materials (via the `W-Generate-Digital` workflow).
+- **Google Sheets**
+  - Serves as the primary data store (the `gsheet-catalog-materi`), controlled exclusively by Laravel and n8n.  
+  - Allows non-technical staff to view and edit catalogs directly in a familiar spreadsheet interface.
+- **Google Gemini API**
+  - Provides AI analysis on materials. Laravel calls this API, stores the `result_json`, and the frontend visualizes it.
+- **Optional Real-Time Updates**
+  - A WebSocket solution (e.g., Laravel Echo with Soketi) for pushing job-status updates instantly to the portal, reducing or replacing polling.
 
 ## 3. Infrastructure and Deployment
-Infrastructure covers where and how we host the app, as well as how changes get delivered:
+This section covers how we host, version, and continuously deliver the application.
 
-- **Git & GitHub**
-  - Version control system (Git) and remote hosting (GitHub) keep track of all code changes and allow team collaboration.
-- **Vercel (or Netlify)**
-  - A popular hosting service optimized for Next.js, with one-click deployments and global content delivery.
-  - Automatically rebuilds and deploys the site whenever code is pushed to the main branch.
-- **GitHub Actions (CI/CD)**
-  - Automates tasks like linting (ESLint), formatting (Prettier), and running any tests you add.
-  - Ensures that only clean, tested code goes live.
-
-Together, these tools provide a reliable, scalable setup where every code change is tested and deployed quickly, with minimal manual work.
+- **Version Control: Git & GitHub**
+  - All code lives in a Git repository on GitHub, allowing collaboration, pull requests, and code reviews.
+- **Continuous Integration & Deployment (CI/CD)**
+  - **GitHub Actions** runs automated checks (tests, lint) on every pull request.  
+  - On merge, it builds and deploys the frontend and backend images.
+- **Containerization: Docker**
+  - The frontend is packaged in a Docker container, ensuring the same environment in development, staging, and production.
+- **Hosting Platforms**
+  - **Frontend**: Deploy to Vercel, Netlify, or a Docker-friendly platform (AWS ECS, DigitalOcean App Platform).  
+  - **Backend**: Host Laravel and n8n on a VPS or container service (e.g., AWS, Heroku, DigitalOcean).
+- **Environment Variables**
+  - Credentials (OAuth keys, API URLs) are stored securely and injected at build/runtime, keeping secrets out of code.
 
 ## 4. Third-Party Integrations
-While this starter kit is minimal by design, it already includes or can easily add:
+These outside services bring extra power without having to build everything from scratch.
 
-- **bcrypt**
-  - For secure password hashing (included as an npm dependency).
-- **NextAuth.js** (optional)
-  - A full-featured authentication library supporting email/password, OAuth, and more.
-- **Sentry or LogRocket** (optional)
-  - For real-time error tracking and performance monitoring in production.
-
-These integrations help extend the app’s capabilities without building every feature from scratch.
+- **Google OAuth 2.0**  
+  - Allows users to sign in with their Google accounts.  
+  - We exchange the Google token with Laravel to establish a secure session.
+- **Google Sheets API**  
+  - Accessed by Laravel to read and write the material catalog.
+- **Google Gemini API**  
+  - Provides AI-powered analysis of materials, turning text into structured insights.
+- **n8n**  
+  - Triggers and manages automated workflows for content generation and scheduling.
+- **Charting Library (Recharts/Chart.js)**  
+  - Renders analytics data from Gemini in interactive charts within the portal.
 
 ## 5. Security and Performance Considerations
-We’ve baked in several measures to keep users safe and the app running smoothly:
+How we keep data safe and the app fast.
 
-Security:
-- Passwords are never stored in plain text—bcrypt hashes them with a random salt.
-- API routes can implement CSRF protection and input validation to block malicious requests.
-- Session tokens or cookies are marked secure and HttpOnly to prevent theft via JavaScript.
-
-Performance:
-- Server-side rendering (SSR) and static site generation (SSG) in Next.js deliver pages faster.
-- Code splitting and lazy-loaded components ensure users only download what they need.
-- Global CSS and theme files are small and cached by the browser for quick repeat visits.
-
-These strategies work together to give users a fast, secure experience every time.
+- **Authentication & Authorization**
+  - Google OAuth ensures a trusted sign-in flow.  
+  - Laravel enforces role-based access (teachers vs. admins) on every endpoint.
+- **Backend-for-Frontend (BFF) Pattern**
+  - Next.js API routes act as a secure middle layer, hiding backend URLs and credentials from the browser.
+- **Data Validation & Sanitization**
+  - Both frontend (TypeScript types, form validation) and Laravel (request validation rules) protect against bad or malicious input.
+- **HTTPS Everywhere**
+  - All traffic is encrypted with TLS to keep user data and tokens safe in transit.
+- **Caching & Polling Optimization**
+  - React Query’s caching reduces unnecessary requests.  
+  - Polling intervals are tuned to balance timeliness and server load.
+- **Code Splitting & Lazy Loading**  
+  - Next.js automatically splits code by route, so users only download what they need.
 
 ## 6. Conclusion and Overall Tech Stack Summary
-In building **codeguide-starter**, we chose technologies that:
+Every technology in this stack was chosen to meet key goals: a fast, user-friendly portal for teachers and admins; a clear separation between frontend and backend; and simple, maintainable integrations with automated workflows and AI analysis.
 
-- Align with modern web standards (Next.js, React, TypeScript).
-- Provide a clear, file-based project structure for rapid onboarding.
-- Offer built-in support for server-side rendering, API routes, and static assets.
-- Emphasize security through password hashing, session management, and safe defaults.
-- Enable easy scaling and future enhancements via modular code and optional integrations.
+- **Frontend**: Next.js + React + TypeScript + Tailwind + shadcn/ui for a modern, responsive UI.
+- **Backend**: Laravel handles business logic, n8n runs content workflows, and Google Sheets stores catalog data.
+- **Infrastructure**: Docker for consistency, GitHub/GitHub Actions for collaboration and CI/CD, and standard hosting choices for scalability.
+- **Integrations**: Google OAuth for sign-in, Google Gemini for AI insights, and charting libraries to visualize data.
 
-This stack strikes a balance between simplicity for newcomers and flexibility for experienced teams. It accelerates development of a secure authentication flow and a polished dashboard, while leaving room to plug in databases, test suites, and advanced features as the project grows.
+This combination ensures you can build, deploy, and run the Portal Digitalisasi Materi with confidence, giving end users a polished experience and developers a clear, maintainable codebase.

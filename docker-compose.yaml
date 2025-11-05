@@ -1,66 +1,159 @@
 version: '3.8'
 
 services:
-  # PostgreSQL Database
-  postgres:
-    image: postgres:16-alpine
-    container_name: codeguide-starter-fullstack-postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
-    networks:
-      - codeguide-starter-fullstack-network
-
-  # Next.js Application
-  app:
+  # Laravel Backend
+  laravel:
     build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: codeguide-starter-fullstack-app
+      context: ./backend
+      dockerfile: ../Dockerfile.laravel
+    container_name: portal-laravel
     restart: unless-stopped
+    working_dir: /var/www
+    volumes:
+      - ./backend:/var/www
+      - ./storage/app:/var/www/storage/app
+    networks:
+      - portal-network
+    depends_on:
+      - mysql
+      - redis
     environment:
-      - NODE_ENV=production
-      - DATABASE_URL=${DATABASE_URL}
-      - BETTER_AUTH_SECRET=your-super-secret-key-change-in-production
-      - BETTER_AUTH_URL=http://localhost:3000
+      - APP_ENV=production
+      - APP_DEBUG=false
+      - DB_HOST=mysql
+      - DB_DATABASE=portal_digitalisasi_materi
+      - DB_USERNAME=portal_user
+      - DB_PASSWORD=portal_password
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+
+  # Nginx Web Server
+  nginx:
+    image: nginx:alpine
+    container_name: portal-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./docker/nginx/sites/:/etc/nginx/sites-available/
+      - ./storage/app:/var/www/storage/app:ro
+    networks:
+      - portal-network
+    depends_on:
+      - laravel
+
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: portal-mysql
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    environment:
+      - MYSQL_DATABASE=portal_digitalisasi_materi
+      - MYSQL_USER=portal_user
+      - MYSQL_PASSWORD=portal_password
+      - MYSQL_ROOT_PASSWORD=root_password
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./docker/mysql/my.cnf:/etc/mysql/my.cnf
+    networks:
+      - portal-network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: portal-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+      - ./docker/redis/redis.conf:/etc/redis/redis.conf
+    command: redis-server /etc/redis/redis.conf
+    networks:
+      - portal-network
+
+  # Nuxt 3 Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../Dockerfile.frontend
+    container_name: portal-frontend
+    restart: unless-stopped
     ports:
       - "3000:3000"
-    depends_on:
-      - postgres
-    networks:
-      - codeguide-starter-fullstack-network
-
-  # Development database only
-  postgres-dev:
-    image: postgres:16-alpine
-    container_name: codeguide-starter-fullstack-postgres-dev
-    restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-postgres}
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-    ports:
-      - "5433:5432"
+      - NITRO_HOST=0.0.0.0
+      - NITRO_PORT=3000
+      - API_BASE_URL=http://laravel/api
+      - NUXT_PUBLIC_API_BASE_URL=http://laravel/api
     volumes:
-      - postgres_dev_data:/var/lib/postgresql/data
+      - ./frontend:/app
+      - /app/node_modules
     networks:
-      - codeguide-starter-fullstack-network
-    profiles:
-      - dev
+      - portal-network
+    depends_on:
+      - laravel
+
+  # Laravel Queue Worker
+  queue-worker:
+    build:
+      context: ./backend
+      dockerfile: ../Dockerfile.laravel
+    container_name: portal-queue-worker
+    restart: unless-stopped
+    command: php artisan queue:work --sleep=3 --tries=3 --max-time=3600
+    working_dir: /var/www
+    volumes:
+      - ./backend:/var/www
+    networks:
+      - portal-network
+    depends_on:
+      - mysql
+      - redis
+    environment:
+      - APP_ENV=production
+      - DB_HOST=mysql
+      - DB_DATABASE=portal_digitalisasi_materi
+      - DB_USERNAME=portal_user
+      - DB_PASSWORD=portal_password
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+
+  # Laravel Scheduler
+  scheduler:
+    build:
+      context: ./backend
+      dockerfile: ../Dockerfile.laravel
+    container_name: portal-scheduler
+    restart: unless-stopped
+    command: sh -c "while true; do php artisan schedule:run; sleep 60; done"
+    working_dir: /var/www
+    volumes:
+      - ./backend:/var/www
+    networks:
+      - portal-network
+    depends_on:
+      - mysql
+      - redis
+    environment:
+      - APP_ENV=production
+      - DB_HOST=mysql
+      - DB_DATABASE=portal_digitalisasi_materi
+      - DB_USERNAME=portal_user
+      - DB_PASSWORD=portal_password
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
 
 volumes:
-  postgres_data:
+  mysql_data:
     driver: local
-  postgres_dev_data:
+  redis_data:
     driver: local
 
 networks:
-  codeguide-starter-fullstack-network:
+  portal-network:
     driver: bridge

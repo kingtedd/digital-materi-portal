@@ -1,17 +1,41 @@
-# Codeguide Starter Fullstack
+# Portal Digitalisasi Materi
 
-A modern web application starter template built with Next.js 15, featuring authentication, database integration, and dark mode support.
+Portal Digitalisasi Materi adalah aplikasi berbasis **Laravel + Nuxt 3 + Google APIs** untuk memanajemen otomatis digitalisasi materi pembelajaran, integrasi Google Drive/Sheets/Classroom, dan analisis hasil belajar.
 
-## Tech Stack
+## 🏗️ Teknologi Stack
 
-- **Framework:** [Next.js 15](https://nextjs.org/) (App Router with Turbopack)
-- **Language:** TypeScript
-- **Authentication:** [Better Auth](https://better-auth.com/)
-- **Database:** [Drizzle ORM](https://orm.drizzle.team/) with PostgreSQL
-- **Styling:** [Tailwind CSS v4](https://tailwindcss.com/)
-- **UI Components:** [shadcn/ui](https://ui.shadcn.com/) (New York style)
-- **Theme System:** [next-themes](https://github.com/pacocoursey/next-themes)
-- **Icons:** [Lucide React](https://lucide.dev/)
+### Backend
+- **Laravel 11** - PHP 8.3+ framework
+- **MySQL 8.0** - Database utama
+- **Redis** - Cache & Queue management
+- **Google APIs** - Drive, Sheets, Classroom, Gmail, Gemini
+
+### Frontend
+- **Nuxt 3** - Vue 3 framework dengan SSR/SPA
+- **Tailwind CSS** - Utility-first CSS framework
+- **Headless UI** - Komponen UI yang accessible
+- **Chart.js** - Visualisasi data analytics
+
+### Workflow Automation
+- **n8n** - Orkestrasi workflow automation
+- **Google Gemini API** - AI content generation
+- **Google Cloud Text-to-Speech** - Audio generation
+
+## 📋 Fitur Utama
+
+### Portal Guru
+- ✅ Manajemen katalog materi pembelajaran
+- ✅ Digitalisasi otomatis materi (video, podcast, flashcard, quiz, SQ3R report)
+- ✅ Manajemen Google Classroom (kelas, quiz, assignment, announcement)
+- ✅ Analisa hasil quiz menggunakan Gemini API & visualisasi grafis
+- ✅ Dashboard analytics performa materi dan siswa
+
+### Portal Admin
+- ✅ Manajemen credential API
+- ✅ Template email & assignment management
+- ✅ User management & audit trail
+- ✅ Monitoring job status & system health
+- ✅ Konfigurasi sistem
 
 ## Prerequisites
 
